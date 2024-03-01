@@ -729,17 +729,25 @@ def getIntUpStatus(mgmt_ipaddr: str, int_name:str):
 def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
     start_time_std=datetime.fromisoformat(start_time)
     end_time_std=datetime.fromisoformat(end_time)
-    step=ceil(((end_time_std-start_time_std).seconds)/32)
+    step=ceil(((end_time_std-start_time_std).total_seconds())/32)
 
     start_time=start_time.replace("+","%2B")
     end_time=end_time.replace("+","%2B")
 
-    target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCInOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
+    target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCInOctets{instance='%s',ifDescr='%s'}[30s])*8 OR on() vector(0)&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
+
     try:
-        response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
+        response_body_temp=json.loads(requests.get(url=target_url).text)['data']['result']
+        if len(response_body_temp)>1:
+            zero_val=response_body_temp[0]['values']  
+            metric_val=response_body_temp[1]['values']
+            response_body_temp_appended=zero_val+metric_val
+            response_body=sorted(response_body_temp_appended, key=lambda sublist: sublist[0])
+            print(len(response_body))
+        else:
+            response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
     except:
         response_body={}
-
     for idx, metric_item in enumerate(response_body):
         response_body[idx][0]=datetime.fromtimestamp(metric_item[0], tz=tzlocal.get_localzone()).isoformat(timespec="seconds")
     return response_body
@@ -747,20 +755,24 @@ def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_ti
 def getInterfaceOutThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
     start_time_std=datetime.fromisoformat(start_time)
     end_time_std=datetime.fromisoformat(end_time)
-    step=ceil(((end_time_std-start_time_std).seconds)/32)
-
+    step=ceil(((end_time_std-start_time_std).total_seconds())/32)
     start_time=start_time.replace("+","%2B")
     end_time=end_time.replace("+","%2B")
-    print(end_time)
 
     target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCOutOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
     try:
-        response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
+        response_body_temp=json.loads(requests.get(url=target_url).text)['data']['result']
+        if len(response_body_temp)>1:
+            zero_val=response_body_temp[0]['values']  
+            metric_val=response_body_temp[1]['values']
+            response_body_temp_appended=zero_val+metric_val
+            response_body=sorted(response_body_temp_appended, key=lambda sublist: sublist[0])
+            print(len(response_body))
+        else:
+            response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
     except:
         response_body={}
     
-    
     for idx, metric_item in enumerate(response_body):
         response_body[idx][0]=datetime.fromtimestamp(metric_item[0], tz=tzlocal.get_localzone()).isoformat(timespec="seconds")
-
     return response_body

@@ -51,7 +51,6 @@ def devices(request):
             
 
             activity_log("info", request.data["hostname"], "device", "Device %s added successfully"%(request.data["hostname"]))
-            print("OK")
             return Response(status=status.HTTP_201_CREATED)
         else:
             activity_log("error", request.data["hostname"], "device", "Device %s creation error: %s."%(request.data['hostname'], serializer.errors))
@@ -307,7 +306,6 @@ def acl_detail(request, hostname, name):
             activity_log("info", hostname, "ACL", "ACL %s applied to interface successfully: %s"%(name, request.data['apply_to_interface']))
         else:
             activity_log("error", hostname, "ACL", "ACL %s applied to interface failed: %s"%(name, result['acl_apply']['body']))
-        print(timer()-start)
 
         return Response(result)
     elif request.method=="DELETE":
@@ -463,8 +461,9 @@ def interface_in_throughput(request, hostname, name):
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     if request.method=='GET':
-        data=request.data
-        return Response(data=getInterfaceInThroughput(device.mgmt_ipaddr, name, data['start_time'], data['end_time']))
+        start_time=request.query_params['start_time']
+        end_time=request.query_params['end_time']
+        return Response(data=getInterfaceInThroughput(device.mgmt_ipaddr, name, start_time, end_time))
 
 @api_view(['GET'])
 def interface_out_throughput(request, hostname, name):
@@ -473,15 +472,17 @@ def interface_out_throughput(request, hostname, name):
         device=Device.objects.get(pk=hostname)
     except Device.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
+    
     if request.method=='GET':
-        data=request.data
-        return Response(data=getInterfaceOutThroughput(device.mgmt_ipaddr, name, data['start_time'], data['end_time']))
+        start_time=request.query_params['start_time']
+        end_time=request.query_params['end_time']
+        return Response(data=getInterfaceOutThroughput(device.mgmt_ipaddr, name, start_time, end_time))
 
 @api_view(['GET'])
 def log_activity(request):
     if request.method=='GET':
-        start_time=datetime.fromisoformat(request.data['start_time']).astimezone(timezone.utc)
-        end_time=datetime.fromisoformat(request.data['end_time']).astimezone(timezone.utc)
+        start_time=request.query_params['start_time']
+        end_time=request.query_params['end_time']
 
         activitylog=ActivityLog.objects.filter(time__gte=start_time, time__lte=end_time).order_by("-time")
         serializer=ActivityLogSerializer(instance=activitylog, many=True)
